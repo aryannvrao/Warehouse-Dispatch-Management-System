@@ -1,0 +1,217 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 24px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #f4f5f7;
+  color: #1f2328;
+}
+
+.app-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+h1 {
+  margin: 0 0 20px;
+}
+
+h2 {
+  margin: 0 0 14px;
+  font-size: 1.25rem;
+}
+
+/* Register Package Form */
+.package-form {
+  background: #ffffff;
+  border: 1px solid #dde1e6;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.package-form .form-group {
+  margin-bottom: 12px;
+}
+
+.package-form label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.package-form input,
+.package-form select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #dde1e6;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.package-form button,
+.btn-primary {
+  background: #0969da;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.package-form button:hover,
+.btn-primary:hover {
+  background: #0757b3;
+}
+
+/* Package Detail View */
+.package-detail {
+  background: #eef5fc;
+  border: 2px solid #0969da;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.package-detail p {
+  margin: 6px 0;
+  font-size: 0.95rem;
+}
+
+.package-detail input,
+.package-detail select {
+  padding: 4px 8px;
+  border: 1px solid #dde1e6;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.detail-actions,
+.card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #24292f;
+  border: 1px solid #dde1e6;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn-danger {
+  background: #cf222e;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: #a40e26;
+}
+
+.btn-danger:disabled {
+  background: #e1e4e8;
+  color: #8c959f;
+  cursor: not-allowed;
+}
+
+.btn-small {
+  background: #0969da;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+/* Packages Grid / List */
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.filter-controls label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.filter-controls select {
+  padding: 4px 8px;
+  border: 1px solid #dde1e6;
+  border-radius: 6px;
+}
+
+.packages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+/* One Package Card */
+.package-item {
+  background: #ffffff;
+  border: 1px solid #dde1e6;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.package-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.package-item h3 {
+  font-size: 1.05rem;
+  margin: 0 0 4px;
+}
+
+.package-item p {
+  margin: 2px 0;
+  font-size: 0.9rem;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: #e1f5fe;
+  color: #0277bd;
+  width: fit-content;
+}
