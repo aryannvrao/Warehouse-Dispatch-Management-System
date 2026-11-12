@@ -1,5 +1,5 @@
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,timezone
 from sqlalchemy import Integer, String, Float, Column, DateTime, create_engine
 from sqlalchemy.orm import Session, declarative_base
 import jwt
@@ -13,6 +13,7 @@ ADMIN_PASSWORD = "aryan@06"
 ACCESS_TOKEN_EXPIRY = 60
 SECRET_KEY = "SECRET67_WAREHOUSE_DISPATCH_JWT_KEY_2026"
 ALGORITHM = "HS256"
+REFRESH_TOKEN_EXPIRY = 7
 
 
 class Package(Base):
@@ -53,16 +54,24 @@ init_sample_batches()
 
 
 # Token Creation and Verification
-def creat_token(username):
-    payload = {
-        "username": username,
-        "exp": datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRY),
-    }
-    token = jwt.encode(payload=payload, key=SECRET_KEY, algorithm=ALGORITHM)
-    return token
+def creat_token(username,token_type):
+    if token_type=="access":
+        payload = {
+            "username": username,
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRY),
+        }
+        token = jwt.encode(payload=payload, key=SECRET_KEY, algorithm=ALGORITHM)
+        return token
+    else:
+        payload = {
+            "username": username,
+            "exp": datetime.now(timezone.utc) + timedelta(days=7),
+        }
+        token = jwt.encode(payload=payload, key=SECRET_KEY, algorithm=ALGORITHM)
+        return token
 
 
-def verify_token(token: str):
+def verify_token(token: str,token_type):
     if not token:
         return False
     try:
@@ -74,8 +83,9 @@ def verify_token(token: str):
 
 def login(username: str, password: str):
     if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        token = creat_token(username=username)
-        return token
+        access_token=creat_token(username=username,token_type="access")
+        refresh_token=creat_token(username=username,token_type="refresh")
+        return {"access_token":access_token,"refresh_token":refresh_token}
     else:
         return None
 

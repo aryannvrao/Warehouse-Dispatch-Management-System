@@ -26,7 +26,7 @@ function App() {
   // Login handler
   function handleLogin(e) {
     e.preventDefault();
-    fetch(`http://127.0.0.1:8000/login?username=${loginUser}&password=${loginPass}`, {
+    fetch(`http://127.0.0.1:8001/login?username=${loginUser}&password=${loginPass}`, {
       method: "POST",
     })
       .then((res) => {
@@ -55,7 +55,7 @@ function App() {
   // Endpoint 5: Load packages (with token)
   function loadPackages() {
     if (!token) return;
-    let url = "http://127.0.0.1:8000/packages";
+    let url = "http://127.0.0.1:8001/packages";
     const params = [];
     if (filterDestination) params.push(`destination=${filterDestination}`);
     if (filterStatus) params.push(`status=${filterStatus}`);
@@ -77,7 +77,7 @@ function App() {
   // Endpoint 7: Load warehouse statistics (with token)
   function loadSummary() {
     if (!token) return;
-    fetch("http://127.0.0.1:8000/analytics/summary", {
+    fetch("http://127.0.0.1:8001/analytics/summary", {
       headers: { token: token },
     })
       .then((response) => response.json())
@@ -87,7 +87,7 @@ function App() {
   // Endpoint 6: Load dispatch batches (with token)
   function loadBatches() {
     if (!token) return;
-    let url = "http://127.0.0.1:8000/dispatch-batches";
+    let url = "http://127.0.0.1:8001/dispatch-batches";
     if (filterBatchDestination) {
       url += `?destination=${filterBatchDestination}`;
     }
@@ -129,7 +129,7 @@ function App() {
   // Endpoint 1: Register a package (with token)
   function addPackage(e) {
     e.preventDefault();
-    fetch(`http://127.0.0.1:8000/packages?name=${name}&destination=${destination}&weight=${weight}`, {
+    fetch(`http://127.0.0.1:8001/packages?name=${name}&destination=${destination}&weight=${weight}`, {
       method: "POST",
       headers: { token: token },
     })
@@ -145,7 +145,7 @@ function App() {
 
   // Endpoint 3: Partially update package details (with token)
   function updatePackage(id, newStatus) {
-    fetch(`http://127.0.0.1:8000/packages/${id}?status=${newStatus}`, {
+    fetch(`http://127.0.0.1:8001/packages/${id}?status=${newStatus}`, {
       method: "PATCH",
       headers: { token: token },
     })
@@ -158,7 +158,7 @@ function App() {
 
   // Endpoint 4: Delete a package (with token)
   function deletePackage(id) {
-    fetch(`http://127.0.0.1:8000/packages/${id}`, {
+    fetch(`http://127.0.0.1:8001/packages/${id}`, {
       method: "DELETE",
       headers: { token: token },
     })

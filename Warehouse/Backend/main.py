@@ -6,7 +6,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,13 +25,17 @@ def check_token(token: str):
 def root():
     return {"message": "Warehouse API", "docs": "/docs"}
 
+@app.post("/refresh")
+def refresh(token: str = Header(None)):
+    check_token(token)
+    return functions.login(username=token)
 
 # Login endpoint (unprotected so users can get a token)
 @app.post("/login")
 def login(username: str, password: str):
     token = functions.login(username=username, password=password)
     if token:
-        return {"token": token}
+        return token
     else:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
