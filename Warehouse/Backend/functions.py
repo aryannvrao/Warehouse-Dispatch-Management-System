@@ -15,57 +15,40 @@ class Package(Base):
     name = Column(String)
     destination = Column(String)
     weight = Column(Float)
-    arrival_date = Column(DateTime, default=datetime.now)
+    arrival_date = Column(DateTime, default=datetime.now())
     status = Column(String)
 
 
 Base.metadata.create_all(engine)
 
 
-def add_package(name, destination, weight, arrival_date=None, status="received"):
+# 1. Add / Register a package
+def add_package(name, destination, weight, status="received"):
     session = Session(engine)
-    if arrival_date is None:
-        arrival_dt = datetime.now()
-    elif isinstance(arrival_date, str):
-        try:
-            arrival_dt = datetime.fromisoformat(arrival_date)
-        except Exception:
-            arrival_dt = datetime.now()
-    else:
-        arrival_dt = arrival_date
-
     package = Package(
         name=name,
         destination=destination,
         weight=float(weight),
-        arrival_date=arrival_dt,
         status=status,
     )
     session.add(package)
     session.commit()
-    session.refresh(package)
     response = {
         "id": package.id,
         "name": package.name,
         "destination": package.destination,
         "weight": package.weight,
-        "arrival_date": package.arrival_date,
+        "arrival_date": str(package.arrival_date),
         "status": package.status,
     }
     session.close()
     return response
 
 
-def get_all_packages(destination=None, status=None, arrival_date=None):
+# Get all packages (to display the list)
+def get_all_packages():
     session = Session(engine)
-    query = session.query(Package)
-    if destination:
-        query = query.filter(Package.destination == destination)
-    if status:
-        query = query.filter(Package.status == status)
-    if arrival_date:
-        query = query.filter(Package.arrival_date == arrival_date)
-    packages = query.all()
+    packages = session.query(Package).all()
     response = []
     for package in packages:
         temp_package = {
@@ -73,7 +56,7 @@ def get_all_packages(destination=None, status=None, arrival_date=None):
             "name": package.name,
             "destination": package.destination,
             "weight": package.weight,
-            "arrival_date": package.arrival_date,
+            "arrival_date": str(package.arrival_date),
             "status": package.status,
         }
         response.append(temp_package)
@@ -81,10 +64,11 @@ def get_all_packages(destination=None, status=None, arrival_date=None):
     return response
 
 
+# 2. Get details of a specific package
 def get_package(id):
     session = Session(engine)
     package = session.get(Package, id)
-    if package is None:
+    if not package:
         session.close()
         return None
     response = {
@@ -92,20 +76,20 @@ def get_package(id):
         "name": package.name,
         "destination": package.destination,
         "weight": package.weight,
-        "arrival_date": package.arrival_date,
+        "arrival_date": str(package.arrival_date),
         "status": package.status,
     }
     session.close()
     return response
 
 
+# 3. Partially update package details
 def update_package(id, name=None, destination=None, weight=None, status=None):
     session = Session(engine)
     package = session.get(Package, id)
-    if package is None:
+    if not package:
         session.close()
         return None
-
     if name is not None:
         package.name = name
     if destination is not None:
@@ -114,32 +98,30 @@ def update_package(id, name=None, destination=None, weight=None, status=None):
         package.weight = float(weight)
     if status is not None:
         package.status = status
-
     session.commit()
-    session.refresh(package)
     response = {
         "id": package.id,
         "name": package.name,
         "destination": package.destination,
         "weight": package.weight,
-        "arrival_date": package.arrival_date,
+        "arrival_date": str(package.arrival_date),
         "status": package.status,
     }
     session.close()
     return response
 
 
+# 4. Delete a package (only if not dispatched)
 def delete_package(id):
     session = Session(engine)
     package = session.get(Package, id)
-    if package is None:
+    if not package:
         session.close()
-        return {"error": "not_found"}
+        return "not_found"
     if package.status == "dispatched":
         session.close()
-        return {"error": "dispatched"}
-
+        return "dispatched"
     session.delete(package)
     session.commit()
     session.close()
-    return {"message": "Package deleted successfully"}
+    return "success"

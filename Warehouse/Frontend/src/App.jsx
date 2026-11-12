@@ -1,95 +1,100 @@
 import { useState, useEffect } from "react";
 import PackageList from "./components/PackageList";
-import RegisterPackage from "./components/RegisterPackage";
-import PackageDetail from "./components/PackageDetail";
 
 function App() {
   const [packages, setPackages] = useState([]);
-  const [selectedPackage, setSelectedPackage] = useState(null);
-  const [filterStatus, setFilterStatus] = useState("");
+  const [name, setName] = useState("");
+  const [destination, setDestination] = useState("");
+  const [weight, setWeight] = useState("");
 
-  function loadPackages(status = "") {
-    const url = status
-      ? `http://127.0.0.1:8000/packages?status=${status}`
-      : "http://127.0.0.1:8000/packages";
-    fetch(url)
+  // Function to load all packages
+  function loadPackages() {
+    fetch("http://127.0.0.1:8000/packages")
       .then((response) => response.json())
       .then((data) => setPackages(data));
   }
 
+  // Load packages when page opens
   useEffect(() => {
-    loadPackages(filterStatus);
-  }, [filterStatus]);
+    loadPackages();
+  }, []);
 
-  function handlePackageAdded(newPackage) {
-    setPackages((prevPackages) => [...prevPackages, newPackage]);
-  }
-
-  function handleSelectPackage(packageId) {
-    fetch(`http://127.0.0.1:8000/packages/${packageId}`)
-      .then((response) => response.json())
-      .then((data) => setSelectedPackage(data));
-  }
-
-  function handleUpdatePackage(packageId, updates) {
-    fetch(`http://127.0.0.1:8000/packages/${packageId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
+  // Endpoint 1: Register a package
+  function addPackage(e) {
+    e.preventDefault();
+    fetch(`http://127.0.0.1:8000/packages?name=${name}&destination=${destination}&weight=${weight}`, {
+      method: "POST",
     })
       .then((response) => response.json())
-      .then((updated) => {
-        setPackages((prev) =>
-          prev.map((pkg) => (pkg.id === packageId ? updated : pkg))
-        );
-        if (selectedPackage && selectedPackage.id === packageId) {
-          setSelectedPackage(updated);
-        }
+      .then(() => {
+        loadPackages();
+        setName("");
+        setDestination("");
+        setWeight("");
       });
   }
 
-  function handleDeletePackage(packageId) {
-    fetch(`http://127.0.0.1:8000/packages/${packageId}`, {
+  // Endpoint 3: Partially update package details
+  function updatePackage(id, newStatus) {
+    fetch(`http://127.0.0.1:8000/packages/${id}?status=${newStatus}`, {
+      method: "PATCH",
+    })
+      .then((response) => response.json())
+      .then(() => loadPackages());
+  }
+
+  // Endpoint 4: Delete a package
+  function deletePackage(id) {
+    fetch(`http://127.0.0.1:8000/packages/${id}`, {
       method: "DELETE",
     })
       .then((response) => {
         if (!response.ok) {
-          return response.json().then((err) => {
-            alert(err.detail || "Failed to delete package");
-          });
+          alert("Cannot delete a dispatched package!");
         }
-        setPackages((prev) => prev.filter((pkg) => pkg.id !== packageId));
-        if (selectedPackage && selectedPackage.id === packageId) {
-          setSelectedPackage(null);
-        }
+        loadPackages();
       });
   }
 
-  function handleCloseDetail() {
-    setSelectedPackage(null);
-  }
-
   return (
-    <div className="app-container">
-      <h1>Warehouse Dispatch Management System</h1>
-      <RegisterPackage onPackageAdded={handlePackageAdded} />
-      {selectedPackage && (
-        <PackageDetail
-          pkg={selectedPackage}
-          onClose={handleCloseDetail}
-          onUpdatePackage={handleUpdatePackage}
-          onDeletePackage={handleDeletePackage}
+    <>
+      <h1>Warehouse Packages</h1>
+
+      {/* Endpoint 1 Form */}
+      <form onSubmit={addPackage} className="add-form">
+        <h3>Register a Package</h3>
+        <input
+          type="text"
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
         />
-      )}
+        <input
+          type="text"
+          placeholder="Destination"
+          value={destination}
+          onChange={(e) => setDestination(e.target.value)}
+          required
+        />
+        <input
+          type="number"
+          step="0.1"
+          placeholder="Weight (kg)"
+          value={weight}
+          onChange={(e) => setWeight(e.target.value)}
+          required
+        />
+        <button type="submit">Add Package</button>
+      </form>
+
+      {/* Package List */}
       <PackageList
         packages={packages}
-        onSelectPackage={handleSelectPackage}
-        onUpdatePackage={handleUpdatePackage}
-        onDeletePackage={handleDeletePackage}
-        filterStatus={filterStatus}
-        onFilterChange={setFilterStatus}
+        onUpdate={updatePackage}
+        onDelete={deletePackage}
       />
-    </div>
+    </>
   );
 }
 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import functions
 
@@ -15,103 +15,45 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-    return {"message": "Warehouse Dispatch Management System API", "docs": "/docs"}
+    return {"message": "Warehouse API", "docs": "/docs"}
 
 
+# Endpoint 1: Register a package
+@app.post("/packages")
+def add_package(name: str, destination: str, weight: float, status: str = "received"):
+    return functions.add_package(name=name, destination=destination, weight=weight, status=status)
+
+
+# Helper endpoint: Get all packages (used by frontend to list packages)
 @app.get("/packages")
-def packages(destination: str = None, status: str = None, arrival_date: str = None):
-    return functions.get_all_packages(
-        destination=destination,
-        status=status,
-        arrival_date=arrival_date,
-    )
+def get_all_packages():
+    return functions.get_all_packages()
 
 
-@app.get("/packages/{package_id}")
-def get_package(package_id: int):
-    package = functions.get_package(package_id)
-    if package is None:
+# Endpoint 2: Get the details of a specific package
+@app.get("/packages/{id}")
+def get_package(id: int):
+    package = functions.get_package(id)
+    if not package:
         raise HTTPException(status_code=404, detail="Package not found")
     return package
 
 
-@app.post("/packages")
-async def add_package(
-    name: str = None,
-    destination: str = None,
-    weight: float = None,
-    arrival_date: str = None,
-    status: str = "received",
-    request: Request = None,
-):
-    if request:
-        try:
-            body = await request.json()
-            if isinstance(body, dict):
-                name = body.get("name", name)
-                destination = body.get("destination", destination)
-                weight = body.get("weight", weight)
-                arrival_date = body.get("arrival_date", arrival_date)
-                status = body.get("status", status or "received")
-        except Exception:
-            pass
-
-    if not name or not destination or weight is None:
-        raise HTTPException(
-            status_code=422,
-            detail="name, destination, and weight are required",
-        )
-
-    return functions.add_package(
-        name=name,
-        destination=destination,
-        weight=weight,
-        arrival_date=arrival_date,
-        status=status,
-    )
-
-
-@app.patch("/packages/{package_id}")
-async def update_package(
-    package_id: int,
-    name: str = None,
-    destination: str = None,
-    weight: float = None,
-    status: str = None,
-    request: Request = None,
-):
-    if request:
-        try:
-            body = await request.json()
-            if isinstance(body, dict):
-                name = body.get("name", name)
-                destination = body.get("destination", destination)
-                weight = body.get("weight", weight)
-                status = body.get("status", status)
-        except Exception:
-            pass
-
-    package = functions.get_package(package_id)
-    if package is None:
+# Endpoint 3: Partially update package details
+@app.patch("/packages/{id}")
+def update_package(id: int, name: str = None, destination: str = None, weight: float = None, status: str = None):
+    package = functions.update_package(id=id, name=name, destination=destination, weight=weight, status=status)
+    if not package:
         raise HTTPException(status_code=404, detail="Package not found")
-
-    return functions.update_package(
-        id=package_id,
-        name=name,
-        destination=destination,
-        weight=weight,
-        status=status,
-    )
+    return package
 
 
-@app.delete("/packages/{package_id}")
-def delete_package(package_id: int):
-    result = functions.delete_package(package_id)
-    if result.get("error") == "not_found":
+# Endpoint 4: Delete a package (only if it has not been dispatched)
+@app.delete("/packages/{id}")
+def delete_package(id: int):
+    result = functions.delete_package(id)
+    if result == "not_found":
         raise HTTPException(status_code=404, detail="Package not found")
-    if result.get("error") == "dispatched":
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete a package that has already been dispatched",
-        )
-    return result
+    if result == "dispatched":
+        raise HTTPException(status_code=400, detail="Cannot delete a package that has already been dispatched")
+    return {"message": "Package deleted successfully"}
