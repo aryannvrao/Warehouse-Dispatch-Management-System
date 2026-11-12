@@ -14,24 +14,50 @@ h1 {
   margin: 0 0 20px;
 }
 
-.add-form {
+h2 {
+  margin: 20px 0 10px;
+}
+
+.section-card {
   background: #ffffff;
   border: 1px solid #dde1e6;
   border-radius: 12px;
   padding: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.section-card h2 {
+  margin-top: 0;
+}
+
+.section-card ul {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.add-form,
+.filter-bar {
+  background: #ffffff;
+  border: 1px solid #dde1e6;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   align-items: center;
 }
 
-.add-form h3 {
+.add-form h3,
+.filter-bar h3 {
   width: 100%;
   margin: 0 0 8px;
 }
 
-.add-form input {
+.add-form input,
+.filter-bar input,
+.filter-bar select {
   padding: 8px 12px;
   border: 1px solid #dde1e6;
   border-radius: 6px;

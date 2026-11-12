@@ -24,10 +24,10 @@ def add_package(name: str, destination: str, weight: float, status: str = "recei
     return functions.add_package(name=name, destination=destination, weight=weight, status=status)
 
 
-# Helper endpoint: Get all packages (used by frontend to list packages)
+# Endpoint 5: Search and filter packages (by destination, status, arrival date)
 @app.get("/packages")
-def get_all_packages():
-    return functions.get_all_packages()
+def get_all_packages(destination: str = None, status: str = None, arrival_date: str = None):
+    return functions.get_all_packages(destination=destination, status=status, arrival_date=arrival_date)
 
 
 # Endpoint 2: Get the details of a specific package
@@ -57,3 +57,21 @@ def delete_package(id: int):
     if result == "dispatched":
         raise HTTPException(status_code=400, detail="Cannot delete a package that has already been dispatched")
     return {"message": "Package deleted successfully"}
+
+
+# Endpoint 6: View dispatch batches (filter by destination, vehicle, dispatch status)
+@app.get("/dispatch-batches")
+def get_dispatch_batches(destination: str = None, vehicle: str = None, status: str = None):
+    return functions.get_dispatch_batches(destination=destination, vehicle=vehicle, status=status)
+
+
+# Helper to add a dispatch batch
+@app.post("/dispatch-batches")
+def add_dispatch_batch(destination: str, vehicle: str, status: str = "pending"):
+    return functions.add_dispatch_batch(destination=destination, vehicle=vehicle, status=status)
+
+
+# Endpoint 7: Get warehouse statistics (dispatch summary)
+@app.get("/analytics/summary")
+def get_summary():
+    return functions.get_summary()
