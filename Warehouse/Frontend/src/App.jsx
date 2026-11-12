@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import PackageList from "./components/PackageList";
 
 function App() {
+  // Authentication state
+  const [token, setToken] = useState("");
+  const [loginUser, setLoginUser] = useState("");
+  const [loginPass, setLoginPass] = useState("");
+
   const [packages, setPackages] = useState([]);
   const [summary, setSummary] = useState(null);
   const [batches, setBatches] = useState([]);
@@ -18,8 +23,38 @@ function App() {
   // Filter state for dispatch batches (Endpoint 6)
   const [filterBatchDestination, setFilterBatchDestination] = useState("");
 
-  // Endpoint 5: Load packages (with optional filters)
+  // Login handler
+  function handleLogin(e) {
+    e.preventDefault();
+    fetch(`http://127.0.0.1:8000/login?username=${loginUser}&password=${loginPass}`, {
+      method: "POST",
+    })
+      .then((res) => {
+        if (!res.ok) {
+          alert("Invalid username or password");
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data && data.token) {
+          setToken(data.token);
+          setLoginPass("");
+        }
+      });
+  }
+
+  // Logout handler
+  function handleLogout() {
+    setToken("");
+    setPackages([]);
+    setSummary(null);
+    setBatches([]);
+  }
+
+  // Endpoint 5: Load packages (with token)
   function loadPackages() {
+    if (!token) return;
     let url = "http://127.0.0.1:8000/packages";
     const params = [];
     if (filterDestination) params.push(`destination=${filterDestination}`);
@@ -28,52 +63,75 @@ function App() {
       url += "?" + params.join("&");
     }
 
-    fetch(url)
+    fetch(url, {
+      headers: { token: token },
+    })
       .then((response) => response.json())
-      .then((data) => setPackages(data));
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setPackages(data);
+        }
+      });
   }
 
-  // Endpoint 7: Load warehouse statistics
+  // Endpoint 7: Load warehouse statistics (with token)
   function loadSummary() {
-    fetch("http://127.0.0.1:8000/analytics/summary")
+    if (!token) return;
+    fetch("http://127.0.0.1:8000/analytics/summary", {
+      headers: { token: token },
+    })
       .then((response) => response.json())
       .then((data) => setSummary(data));
   }
 
-  // Endpoint 6: Load dispatch batches (with optional filter)
+  // Endpoint 6: Load dispatch batches (with token)
   function loadBatches() {
+    if (!token) return;
     let url = "http://127.0.0.1:8000/dispatch-batches";
     if (filterBatchDestination) {
       url += `?destination=${filterBatchDestination}`;
     }
 
-    fetch(url)
+    fetch(url, {
+      headers: { token: token },
+    })
       .then((response) => response.json())
-      .then((data) => setBatches(data));
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setBatches(data);
+        }
+      });
   }
 
-  // Initial load
+  // Load data whenever token changes
   useEffect(() => {
-    loadPackages();
-    loadSummary();
-    loadBatches();
-  }, []);
+    if (token) {
+      loadPackages();
+      loadSummary();
+      loadBatches();
+    }
+  }, [token]);
 
   // Reload packages when filters change (Endpoint 5)
   useEffect(() => {
-    loadPackages();
+    if (token) {
+      loadPackages();
+    }
   }, [filterDestination, filterStatus]);
 
   // Reload batches when batch filter changes (Endpoint 6)
   useEffect(() => {
-    loadBatches();
+    if (token) {
+      loadBatches();
+    }
   }, [filterBatchDestination]);
 
-  // Endpoint 1: Register a package
+  // Endpoint 1: Register a package (with token)
   function addPackage(e) {
     e.preventDefault();
     fetch(`http://127.0.0.1:8000/packages?name=${name}&destination=${destination}&weight=${weight}`, {
       method: "POST",
+      headers: { token: token },
     })
       .then((response) => response.json())
       .then(() => {
@@ -85,10 +143,11 @@ function App() {
       });
   }
 
-  // Endpoint 3: Partially update package details
+  // Endpoint 3: Partially update package details (with token)
   function updatePackage(id, newStatus) {
     fetch(`http://127.0.0.1:8000/packages/${id}?status=${newStatus}`, {
       method: "PATCH",
+      headers: { token: token },
     })
       .then((response) => response.json())
       .then(() => {
@@ -97,10 +156,11 @@ function App() {
       });
   }
 
-  // Endpoint 4: Delete a package
+  // Endpoint 4: Delete a package (with token)
   function deletePackage(id) {
     fetch(`http://127.0.0.1:8000/packages/${id}`, {
       method: "DELETE",
+      headers: { token: token },
     })
       .then((response) => {
         if (!response.ok) {
@@ -111,9 +171,38 @@ function App() {
       });
   }
 
+  // If not logged in, show simple login card
+  if (!token) {
+    return (
+      <div className="section-card" style={{ maxWidth: "400px", margin: "40px auto" }}>
+        <h2>Warehouse Login</h2>
+        <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <input
+            type="text"
+            placeholder="Username (e.g. aryan)"
+            value={loginUser}
+            onChange={(e) => setLoginUser(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password (e.g. aryan@06)"
+            value={loginPass}
+            onChange={(e) => setLoginPass(e.target.value)}
+            required
+          />
+          <button type="submit">Login</button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <>
-      <h1>Warehouse Dispatch Management System</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>Warehouse Dispatch Management System</h1>
+        <button onClick={handleLogout}>Logout</button>
+      </div>
 
       {/* Endpoint 7: Warehouse Statistics */}
       {summary && (
@@ -125,11 +214,12 @@ function App() {
           <p><strong>Total Dispatched:</strong> {summary.total_dispatched}</p>
           <p><strong>Destination Counts:</strong></p>
           <ul>
-            {Object.keys(summary.destination_counts).map((dest) => (
-              <li key={dest}>
-                {dest}: {summary.destination_counts[dest]}
-              </li>
-            ))}
+            {summary.destination_counts &&
+              Object.keys(summary.destination_counts).map((dest) => (
+                <li key={dest}>
+                  {dest}: {summary.destination_counts[dest]}
+                </li>
+              ))}
           </ul>
         </div>
       )}
@@ -188,6 +278,7 @@ function App() {
         packages={packages}
         onUpdate={updatePackage}
         onDelete={deletePackage}
+        token={token}
       />
 
       {/* Endpoint 6: Dispatch Batches */}

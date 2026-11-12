@@ -1,16 +1,19 @@
 from pathlib import Path
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 from sqlalchemy import Integer, String, Float, Column, DateTime, create_engine
 from sqlalchemy.orm import Session, declarative_base
 import jwt
+
 DB_PATH = Path(__file__).resolve().with_name("warehouse.db")
 engine = create_engine(f"sqlite:///{DB_PATH}")
 Base = declarative_base()
+
 ADMIN_USERNAME = "aryan"
 ADMIN_PASSWORD = "aryan@06"
-Acces_token_expiriry=15
-SECRET_KEY="SECRET67"
-ALGORITHM = 'HS256'
+ACCESS_TOKEN_EXPIRY = 60
+SECRET_KEY = "SECRET67_WAREHOUSE_DISPATCH_JWT_KEY_2026"
+ALGORITHM = "HS256"
+
 
 class Package(Base):
     __tablename__ = "packages"
@@ -35,7 +38,7 @@ class DispatchBatch(Base):
 Base.metadata.create_all(engine)
 
 
-# Seed sample batches if empty so Endpoint 6 has data to view
+# Seed sample batches if empty
 def init_sample_batches():
     session = Session(engine)
     if session.query(DispatchBatch).count() == 0:
@@ -47,6 +50,34 @@ def init_sample_batches():
 
 
 init_sample_batches()
+
+
+# Token Creation and Verification
+def creat_token(username):
+    payload = {
+        "username": username,
+        "exp": datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRY),
+    }
+    token = jwt.encode(payload=payload, key=SECRET_KEY, algorithm=ALGORITHM)
+    return token
+
+
+def verify_token(token: str):
+    if not token:
+        return False
+    try:
+        payload = jwt.decode(jwt=token, key=SECRET_KEY, algorithms=[ALGORITHM])
+        return payload.get("username", False)
+    except Exception:
+        return False
+
+
+def login(username: str, password: str):
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        token = creat_token(username=username)
+        return token
+    else:
+        return None
 
 
 # 1. Add / Register a package
@@ -234,26 +265,3 @@ def get_summary():
         "total_dispatched": total_dispatched,
         "destination_counts": destination_counts,
     }
-
-def login(username: str, password: str):
-    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        token=creat_token(username=username)
-        return {"token": token}
-    else:
-        return None
-
-def creat_token(username):
-    payload={
-        "username": username,
-
-        "exp": datetime.now() + timedelta(minutes=Acces_token_expiriry) 
-    }
-    token=jwt.encode(payload=payload,key=SECRET_KEY,algorithm=ALGORITHM)
-    return token
-
-def verify_token(token:str):
-    try:
-        payload=jwt.decode(jwt=token,key=SECRET_KEY,algorithms=[ALGORITHM])
-        return payload['username']
-    except:
-        return False

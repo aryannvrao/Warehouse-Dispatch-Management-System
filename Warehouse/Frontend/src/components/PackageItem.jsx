@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function PackageItem({ pkg, onUpdate, onDelete }) {
+function PackageItem({ pkg, onUpdate, onDelete, token }) {
   const [details, setDetails] = useState(null);
 
   // Endpoint 2: Get details of a specific package
@@ -8,7 +8,9 @@ function PackageItem({ pkg, onUpdate, onDelete }) {
     if (details) {
       setDetails(null);
     } else {
-      fetch(`http://127.0.0.1:8000/packages/${pkg.id}`)
+      fetch(`http://127.0.0.1:8000/packages/${pkg.id}`, {
+        headers: { token: token },
+      })
         .then((response) => response.json())
         .then((data) => setDetails(data));
     }

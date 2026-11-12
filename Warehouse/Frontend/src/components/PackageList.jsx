@@ -1,6 +1,6 @@
 import PackageItem from "./PackageItem";
 
-function PackageList({ packages, onUpdate, onDelete }) {
+function PackageList({ packages, onUpdate, onDelete, token }) {
   return (
     <>
       <h2>All Packages</h2>
@@ -11,6 +11,7 @@ function PackageList({ packages, onUpdate, onDelete }) {
             pkg={pkg}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            token={token}
           />
         ))}
       </ul>
