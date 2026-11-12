@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body,Header
 from fastapi.middleware.cors import CORSMiddleware
 import functions
 
@@ -26,7 +26,10 @@ def add_package(name: str, destination: str, weight: float, status: str = "recei
 
 # Endpoint 5: Search and filter packages (by destination, status, arrival date)
 @app.get("/packages")
-def get_all_packages(destination: str = None, status: str = None, arrival_date: str = None):
+def get_all_packages(destination: str = None, status: str = None, arrival_date: str = None,token=Header(None)):
+    username=functions.verify_token(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid token")
     return functions.get_all_packages(destination=destination, status=status, arrival_date=arrival_date)
 
 
@@ -75,3 +78,14 @@ def add_dispatch_batch(destination: str, vehicle: str, status: str = "pending"):
 @app.get("/analytics/summary")
 def get_summary():
     return functions.get_summary()
+
+
+
+
+@app.post("/login")
+def login(username: str, password: str):
+    token= functions.login(username=username, password=password)
+    if token:
+        return {"token": token}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid username or password")

@@ -1,12 +1,16 @@
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime,timedelta
 from sqlalchemy import Integer, String, Float, Column, DateTime, create_engine
 from sqlalchemy.orm import Session, declarative_base
-
+import jwt
 DB_PATH = Path(__file__).resolve().with_name("warehouse.db")
 engine = create_engine(f"sqlite:///{DB_PATH}")
 Base = declarative_base()
-
+ADMIN_USERNAME = "aryan"
+ADMIN_PASSWORD = "aryan@06"
+Acces_token_expiriry=15
+SECRET_KEY="SECRET67"
+ALGORITHM = 'HS256'
 
 class Package(Base):
     __tablename__ = "packages"
@@ -230,3 +234,26 @@ def get_summary():
         "total_dispatched": total_dispatched,
         "destination_counts": destination_counts,
     }
+
+def login(username: str, password: str):
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        token=creat_token(username=username)
+        return {"token": token}
+    else:
+        return None
+
+def creat_token(username):
+    payload={
+        "username": username,
+
+        "exp": datetime.now() + timedelta(minutes=Acces_token_expiriry) 
+    }
+    token=jwt.encode(payload=payload,key=SECRET_KEY,algorithm=ALGORITHM)
+    return token
+
+def verify_token(token:str):
+    try:
+        payload=jwt.decode(jwt=token,key=SECRET_KEY,algorithms=[ALGORITHM])
+        return payload['username']
+    except:
+        return False
