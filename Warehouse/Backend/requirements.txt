@@ -1,4 +1,6 @@
 fastapi
 uvicorn
 sqlalchemy
+pydantic
 pyjwt
+argon2-cffi

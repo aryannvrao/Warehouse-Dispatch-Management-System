@@ -2,308 +2,225 @@ import { useState, useEffect } from "react";
 import PackageList from "./components/PackageList";
 
 function App() {
-  // Authentication state
+  // Authentication State
   const [token, setToken] = useState("");
-  const [loginUser, setLoginUser] = useState("");
-  const [loginPass, setLoginPass] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
+  // Data State
   const [packages, setPackages] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [batches, setBatches] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Form states for adding a package (Endpoint 1)
-  const [name, setName] = useState("");
-  const [destination, setDestination] = useState("");
-  const [weight, setWeight] = useState("");
-
-  // Filter states for packages (Endpoint 5)
-  const [filterDestination, setFilterDestination] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-
-  // Filter state for dispatch batches (Endpoint 6)
-  const [filterBatchDestination, setFilterBatchDestination] = useState("");
-
-  // Login handler
+  // ==========================================
+  // Endpoint 1: Login (POST /login)
+  // ==========================================
   function handleLogin(e) {
     e.preventDefault();
-    fetch(`http://127.0.0.1:8001/login?username=${loginUser}&password=${loginPass}`, {
+    setError("");
+    fetch("http://127.0.0.1:8001/login", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
     })
       .then((res) => {
         if (!res.ok) {
-          alert("Invalid username or password");
-          return null;
+          throw new Error("Invalid username or password");
         }
         return res.json();
       })
       .then((data) => {
-        if (data && data.token) {
-          setToken(data.token);
-          setLoginPass("");
+        const receivedToken = data.access_token || data.token;
+        if (receivedToken) {
+          setToken(receivedToken);
+          setCurrentUser({
+            username: data.username || username,
+            role: data.role || "staff",
+          });
+          setPassword("");
         }
+      })
+      .catch((err) => {
+        setError(err.message);
       });
   }
 
-  // Logout handler
-  function handleLogout() {
-    setToken("");
-    setPackages([]);
-    setSummary(null);
-    setBatches([]);
-  }
-
-  // Endpoint 5: Load packages (with token)
+  // ==========================================
+  // Endpoint 2: Get Packages (GET /packages)
+  // ==========================================
   function loadPackages() {
     if (!token) return;
-    let url = "http://127.0.0.1:8001/packages";
-    const params = [];
-    if (filterDestination) params.push(`destination=${filterDestination}`);
-    if (filterStatus) params.push(`status=${filterStatus}`);
-    if (params.length > 0) {
-      url += "?" + params.join("&");
-    }
-
-    fetch(url, {
+    setLoading(true);
+    fetch("http://127.0.0.1:8001/packages", {
       headers: { token: token },
     })
-      .then((response) => response.json())
+      .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
           setPackages(data);
         }
-      });
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }
 
-  // Endpoint 7: Load warehouse statistics (with token)
-  function loadSummary() {
-    if (!token) return;
-    fetch("http://127.0.0.1:8001/analytics/summary", {
-      headers: { token: token },
-    })
-      .then((response) => response.json())
-      .then((data) => setSummary(data));
-  }
-
-  // Endpoint 6: Load dispatch batches (with token)
-  function loadBatches() {
-    if (!token) return;
-    let url = "http://127.0.0.1:8001/dispatch-batches";
-    if (filterBatchDestination) {
-      url += `?destination=${filterBatchDestination}`;
-    }
-
-    fetch(url, {
-      headers: { token: token },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setBatches(data);
-        }
-      });
-  }
-
-  // Load data whenever token changes
-  useEffect(() => {
-    if (token) {
-      loadPackages();
-      loadSummary();
-      loadBatches();
-    }
-  }, [token]);
-
-  // Reload packages when filters change (Endpoint 5)
-  useEffect(() => {
-    if (token) {
-      loadPackages();
-    }
-  }, [filterDestination, filterStatus]);
-
-  // Reload batches when batch filter changes (Endpoint 6)
-  useEffect(() => {
-    if (token) {
-      loadBatches();
-    }
-  }, [filterBatchDestination]);
-
-  // Endpoint 1: Register a package (with token)
-  function addPackage(e) {
-    e.preventDefault();
-    fetch(`http://127.0.0.1:8001/packages?name=${name}&destination=${destination}&weight=${weight}`, {
-      method: "POST",
-      headers: { token: token },
-    })
-      .then((response) => response.json())
-      .then(() => {
-        loadPackages();
-        loadSummary();
-        setName("");
-        setDestination("");
-        setWeight("");
-      });
-  }
-
-  // Endpoint 3: Partially update package details (with token)
-  function updatePackage(id, newStatus) {
-    fetch(`http://127.0.0.1:8001/packages/${id}?status=${newStatus}`, {
-      method: "PATCH",
-      headers: { token: token },
-    })
-      .then((response) => response.json())
-      .then(() => {
-        loadPackages();
-        loadSummary();
-      });
-  }
-
-  // Endpoint 4: Delete a package (with token)
-  function deletePackage(id) {
+  // ==========================================
+  // Endpoint 4: Delete Package (DELETE /packages/{id})
+  // Highlights Role-Based Access Control (Admin vs. Staff)
+  // ==========================================
+  function handleDeletePackage(id) {
     fetch(`http://127.0.0.1:8001/packages/${id}`, {
       method: "DELETE",
       headers: { token: token },
     })
-      .then((response) => {
-        if (!response.ok) {
-          alert("Cannot delete a dispatched package!");
+      .then(async (res) => {
+        const data = await res.json();
+
+        // 403 Forbidden: Staff is not authorized to delete
+        if (res.status === 403) {
+          alert(
+            `⛔ 403 Forbidden (RBAC Enforced)!\n\nBackend Response: "${data.detail}"\n\nYou are logged in as role "${currentUser?.role.toUpperCase()}". Only ADMIN users are authorized to delete packages.`
+          );
+          return;
         }
+
+        // 400 Bad Request: Dispatched packages cannot be deleted
+        if (res.status === 400) {
+          alert(`⚠️ Cannot Delete: ${data.detail}`);
+          return;
+        }
+
+        // Other errors
+        if (!res.ok) {
+          alert(`⚠️ Error: ${data.detail || "Failed to delete package"}`);
+          return;
+        }
+
+        // Success (Admin)
+        alert("✅ Package deleted successfully by ADMIN!");
         loadPackages();
-        loadSummary();
+      })
+      .catch((err) => {
+        alert("Network error: " + err.message);
       });
   }
 
-  // If not logged in, show simple login card
+  // Fetch packages on login
+  useEffect(() => {
+    if (token) {
+      loadPackages();
+    }
+  }, [token]);
+
+  // Logout handler
+  function handleLogout() {
+    setToken("");
+    setCurrentUser(null);
+    setPackages([]);
+  }
+
+  // 1. If not logged in, render Login card (Endpoint 1)
   if (!token) {
     return (
-      <div className="section-card" style={{ maxWidth: "400px", margin: "40px auto" }}>
+      <div className="login-card">
         <h2>Warehouse Login</h2>
-        <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <p className="login-hint">
+          Sign in to access packages. Role-Based Access Control is active.
+        </p>
+
+        {error && <p className="error-message">{error}</p>}
+
+        <form onSubmit={handleLogin}>
           <input
             type="text"
-            placeholder="Username (e.g. aryan)"
-            value={loginUser}
-            onChange={(e) => setLoginUser(e.target.value)}
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
           />
           <input
             type="password"
-            placeholder="Password (e.g. aryan@06)"
-            value={loginPass}
-            onChange={(e) => setLoginPass(e.target.value)}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <button type="submit">Login</button>
+          <button type="submit">Sign In</button>
         </form>
+
+        <div className="demo-accounts">
+          <p><strong>Quick Test Accounts:</strong></p>
+          <div className="demo-buttons">
+            <button
+              type="button"
+              className="demo-btn"
+              onClick={() => {
+                setUsername("admin");
+                setPassword("admin123");
+              }}
+            >
+              Fill Admin (Can Delete)
+            </button>
+            <button
+              type="button"
+              className="demo-btn"
+              onClick={() => {
+                setUsername("staff");
+                setPassword("staff123");
+              }}
+            >
+              Fill Staff (Cannot Delete)
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
+  // 2. If logged in, render Package List + RBAC Demo Banner
   return (
-    <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Warehouse Dispatch Management System</h1>
-        <button onClick={handleLogout}>Logout</button>
+    <div className="container">
+      <header className="header">
+        <div>
+          <h1>Warehouse Dispatch Management</h1>
+          <p className="user-info">
+            👤 User: <strong>{currentUser?.username}</strong> &nbsp;|&nbsp;
+            Role:{" "}
+            <span className={`role-badge ${currentUser?.role}`}>
+              {currentUser?.role?.toUpperCase()}
+            </span>
+          </p>
+        </div>
+        <button className="logout-btn" onClick={handleLogout}>
+          Logout
+        </button>
+      </header>
+
+      {/* RBAC Info Banner */}
+      <div className={`rbac-banner ${currentUser?.role}`}>
+        <strong>🛡️ Role-Based Access Control in Action:</strong>
+        {currentUser?.role === "admin" ? (
+          <span>
+            {" "}You are logged in as <strong>ADMIN</strong>. You have permission to delete packages using the delete button below.
+          </span>
+        ) : (
+          <span>
+            {" "}You are logged in as <strong>STAFF</strong>. Try clicking the "Delete Package" button below to see the backend block you with a <strong>403 Forbidden</strong> error!
+          </span>
+        )}
       </div>
 
-      {/* Endpoint 7: Warehouse Statistics */}
-      {summary && (
-        <div className="section-card">
-          <h2>Warehouse Statistics (Summary)</h2>
-          <p><strong>Total Packages:</strong> {summary.total_packages}</p>
-          <p><strong>Total Received:</strong> {summary.total_received}</p>
-          <p><strong>Pending Dispatch:</strong> {summary.total_pending}</p>
-          <p><strong>Total Dispatched:</strong> {summary.total_dispatched}</p>
-          <p><strong>Destination Counts:</strong></p>
-          <ul>
-            {summary.destination_counts &&
-              Object.keys(summary.destination_counts).map((dest) => (
-                <li key={dest}>
-                  {dest}: {summary.destination_counts[dest]}
-                </li>
-              ))}
-          </ul>
-        </div>
+      {loading ? (
+        <p>Loading warehouse packages...</p>
+      ) : (
+        <PackageList
+          packages={packages}
+          onDelete={handleDeletePackage}
+          currentUser={currentUser}
+        />
       )}
-
-      {/* Endpoint 1: Register a Package Form */}
-      <form onSubmit={addPackage} className="add-form">
-        <h3>Register a Package</h3>
-        <input
-          type="text"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <input
-          type="text"
-          placeholder="Destination"
-          value={destination}
-          onChange={(e) => setDestination(e.target.value)}
-          required
-        />
-        <input
-          type="number"
-          step="0.1"
-          placeholder="Weight (kg)"
-          value={weight}
-          onChange={(e) => setWeight(e.target.value)}
-          required
-        />
-        <button type="submit">Add Package</button>
-      </form>
-
-      {/* Endpoint 5: Filter Packages */}
-      <div className="filter-bar">
-        <h3>Filter Packages</h3>
-        <input
-          type="text"
-          placeholder="Filter by Destination"
-          value={filterDestination}
-          onChange={(e) => setFilterDestination(e.target.value)}
-        />
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-        >
-          <option value="">All Statuses</option>
-          <option value="received">Received</option>
-          <option value="pending">Pending</option>
-          <option value="dispatched">Dispatched</option>
-        </select>
-      </div>
-
-      {/* Package List (Endpoints 2, 3, 4) */}
-      <h2>Packages List</h2>
-      <PackageList
-        packages={packages}
-        onUpdate={updatePackage}
-        onDelete={deletePackage}
-        token={token}
-      />
-
-      {/* Endpoint 6: Dispatch Batches */}
-      <div style={{ marginTop: "32px" }}>
-        <h2>Dispatch Batches</h2>
-        <div className="filter-bar">
-          <input
-            type="text"
-            placeholder="Filter Batches by Destination"
-            value={filterBatchDestination}
-            onChange={(e) => setFilterBatchDestination(e.target.value)}
-          />
-        </div>
-        <ul className="packages">
-          {batches.map((batch) => (
-            <li key={batch.id} className="package">
-              <h2>Batch #{batch.id}</h2>
-              <p>Destination: {batch.destination}</p>
-              <p>Vehicle: {batch.vehicle}</p>
-              <p>Status: {batch.status}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </>
+    </div>
   );
 }
 
