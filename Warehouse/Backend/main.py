@@ -3,11 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 import functions
 
-app = FastAPI(
-    title="Warehouse Dispatch Management API",
-    description="REST API for package management, dispatch batches, analytics, and RBAC authentication with Pydantic validation.",
-    version="2.0.0",
-)
+app = FastAPI(title="Warehouse Dispatch Management API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,14 +19,7 @@ app.add_middleware(
 )
 
 
-# ==========================================
-# 1. JWT & Role-Based Access Control (RBAC)
-# ==========================================
-
 def check_token(token: str = Header(None), required_role: str = None) -> dict:
-    """
-    Validates the incoming JWT token and verifies user role permissions.
-    """
     if not token:
         raise HTTPException(status_code=401, detail="Invalid or missing token")
 
@@ -48,100 +37,92 @@ def check_token(token: str = Header(None), required_role: str = None) -> dict:
     return user_info
 
 
-# ==========================================
-# 2. Pydantic Request Models (Input Validation)
-# ==========================================
-
+# Schemas
 class UserRegister(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50, description="Unique username")
-    password: str = Field(..., min_length=4, max_length=100, description="Password (min 4 characters)")
-    role: str = Field("staff", description="User role: 'staff' or 'admin'")
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=4, max_length=100)
+    role: str = Field("staff")
 
     @field_validator("role")
     @classmethod
     def validate_role(cls, v: str) -> str:
-        role_lower = v.lower().strip()
-        if role_lower not in {"admin", "staff"}:
+        role = v.lower().strip()
+        if role not in {"admin", "staff"}:
             raise ValueError("Role must be either 'admin' or 'staff'")
-        return role_lower
+        return role
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(..., description="Registered username")
-    password: str = Field(..., description="User password")
+    username: str
+    password: str
 
 
 class PackageCreate(BaseModel):
-    name: str = Field(..., min_length=1, description="Package title or item name")
-    destination: str = Field(..., min_length=1, description="Destination city/warehouse")
-    weight: float = Field(..., gt=0, description="Weight in kg (must be greater than 0)")
-    arrival_date: str | None = Field(None, description="Arrival date (ISO string or YYYY-MM-DD)")
-    status: str = Field("received", description="Status: received, pending, or dispatched")
+    name: str = Field(..., min_length=1)
+    destination: str = Field(..., min_length=1)
+    weight: float = Field(..., gt=0)
+    arrival_date: str | None = None
+    status: str = "received"
 
     @field_validator("name", "destination")
     @classmethod
     def validate_not_blank(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError("Field cannot be blank or contain only whitespace")
+            raise ValueError("Field cannot be blank")
         return v.strip()
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
-        valid_statuses = {"received", "pending", "dispatched"}
-        if v.lower() not in valid_statuses:
-            raise ValueError(f"Status must be one of: {', '.join(valid_statuses)}")
+        valid = {"received", "pending", "dispatched"}
+        if v.lower() not in valid:
+            raise ValueError(f"Status must be one of: {', '.join(valid)}")
         return v.lower()
 
 
 class PackageUpdate(BaseModel):
     name: str | None = Field(None, min_length=1)
     destination: str | None = Field(None, min_length=1)
-    weight: float | None = Field(None, gt=0, description="Weight in kg (must be greater than 0)")
+    weight: float | None = Field(None, gt=0)
     status: str | None = None
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str | None) -> str | None:
         if v is not None:
-            valid_statuses = {"received", "pending", "dispatched"}
-            if v.lower() not in valid_statuses:
-                raise ValueError(f"Status must be one of: {', '.join(valid_statuses)}")
+            valid = {"received", "pending", "dispatched"}
+            if v.lower() not in valid:
+                raise ValueError(f"Status must be one of: {', '.join(valid)}")
             return v.lower()
         return v
 
 
 class BatchCreate(BaseModel):
-    destination: str = Field(..., min_length=1, description="Batch destination hub")
-    vehicle: str = Field(..., min_length=1, description="Assigned transport vehicle")
-    status: str = Field("pending", description="Batch status: 'pending' or 'dispatched'")
-    package_ids: list[int] | None = Field(None, description="List of package IDs to assign to this batch")
+    destination: str = Field(..., min_length=1)
+    vehicle: str = Field(..., min_length=1)
+    status: str = "pending"
+    package_ids: list[int] | None = None
 
     @field_validator("status")
     @classmethod
     def validate_batch_status(cls, v: str) -> str:
-        valid_statuses = {"pending", "dispatched"}
-        if v.lower() not in valid_statuses:
-            raise ValueError(f"Batch status must be one of: {', '.join(valid_statuses)}")
+        valid = {"pending", "dispatched"}
+        if v.lower() not in valid:
+            raise ValueError(f"Batch status must be one of: {', '.join(valid)}")
         return v.lower()
 
 
-# Filter query parameter models
 class PackageFilter(BaseModel):
-    destination: str | None = Field(None, description="Filter packages by destination")
-    status: str | None = Field(None, description="Filter packages by status (received, pending, dispatched)")
-    arrival_date: str | None = Field(None, description="Filter packages by arrival date string")
+    destination: str | None = None
+    status: str | None = None
+    arrival_date: str | None = None
 
 
 class BatchFilter(BaseModel):
-    destination: str | None = Field(None, description="Filter batches by destination")
-    vehicle: str | None = Field(None, description="Filter batches by vehicle name")
-    status: str | None = Field(None, description="Filter batches by status")
+    destination: str | None = None
+    vehicle: str | None = None
+    status: str | None = None
 
-
-# ==========================================
-# 3. Pydantic Response Models (Output Serialization)
-# ==========================================
 
 class MessageResponse(BaseModel):
     message: str
@@ -181,16 +162,12 @@ class SummaryResponse(BaseModel):
     destination_counts: dict[str, int]
 
 
-# ==========================================
-# 4. Authentication Endpoints
-# ==========================================
-
-@app.get("/", response_model=dict)
+# Endpoints
+@app.get("/")
 def root():
     return {"message": "Warehouse API is running", "docs": "/docs"}
 
 
-# Register a new user with Argon2 password hashing and role validation
 @app.post("/register", response_model=MessageResponse)
 def register(user: UserRegister):
     success = functions.register_user(
@@ -203,7 +180,6 @@ def register(user: UserRegister):
     return {"message": f"User '{user.username}' registered successfully as {user.role}"}
 
 
-# Login endpoint (supports JSON body and query parameters)
 @app.post("/login", response_model=TokenResponse)
 def login(username: str = None, password: str = None, login_data: LoginRequest = None):
     user = (login_data.username if login_data else None) or username
@@ -215,12 +191,7 @@ def login(username: str = None, password: str = None, login_data: LoginRequest =
     raise HTTPException(status_code=401, detail="Invalid username or password")
 
 
-# ==========================================
-# 5. The 8 Warehouse Endpoints (Fully Validated with Pydantic)
-# ==========================================
-
-# Endpoint 1: Register a package (Roles: Staff, Admin)
-@app.post("/packages", response_model=PackageResponse, status_code=200)
+@app.post("/packages", response_model=PackageResponse)
 def add_package(package: PackageCreate, token: str = Header(None)):
     check_token(token)
     return functions.add_package(
@@ -232,7 +203,6 @@ def add_package(package: PackageCreate, token: str = Header(None)):
     )
 
 
-# Endpoint 2: Get details of a specific package (Roles: Staff, Admin)
 @app.get("/packages/{package_id}", response_model=PackageResponse)
 def get_package(package_id: int, token: str = Header(None)):
     check_token(token)
@@ -242,7 +212,6 @@ def get_package(package_id: int, token: str = Header(None)):
     return package
 
 
-# Endpoint 3: Partially update package details (Roles: Staff, Admin)
 @app.patch("/packages/{package_id}", response_model=PackageResponse)
 def update_package(package_id: int, package: PackageUpdate, token: str = Header(None)):
     check_token(token)
@@ -258,7 +227,6 @@ def update_package(package_id: int, package: PackageUpdate, token: str = Header(
     return updated
 
 
-# Endpoint 4: Delete a package (Role: Admin ONLY)
 @app.delete("/packages/{package_id}", response_model=MessageResponse)
 def delete_package(package_id: int, token: str = Header(None)):
     check_token(token, required_role="admin")
@@ -270,7 +238,6 @@ def delete_package(package_id: int, token: str = Header(None)):
     return {"message": "Package deleted successfully"}
 
 
-# Endpoint 5: Search and filter packages (Roles: Staff, Admin)
 @app.get("/packages", response_model=list[PackageResponse])
 def get_all_packages(filters: PackageFilter = Depends(), token: str = Header(None)):
     check_token(token)
@@ -281,7 +248,6 @@ def get_all_packages(filters: PackageFilter = Depends(), token: str = Header(Non
     )
 
 
-# Endpoint 6: View dispatch batches (Roles: Staff, Admin)
 @app.get("/dispatch-batches", response_model=list[BatchResponse])
 def get_dispatch_batches(filters: BatchFilter = Depends(), token: str = Header(None)):
     check_token(token)
@@ -292,14 +258,12 @@ def get_dispatch_batches(filters: BatchFilter = Depends(), token: str = Header(N
     )
 
 
-# Endpoint 7: Get warehouse statistics summary (Role: Admin ONLY)
 @app.get("/analytics/summary", response_model=SummaryResponse)
 def get_summary(token: str = Header(None)):
     check_token(token, required_role="admin")
     return functions.get_summary()
 
 
-# Endpoint 8: Add dispatch batch manually & assign packages (Role: Admin ONLY)
 @app.post("/dispatch-batches", response_model=BatchResponse)
 def add_dispatch_batch(batch: BatchCreate, token: str = Header(None)):
     check_token(token, required_role="admin")

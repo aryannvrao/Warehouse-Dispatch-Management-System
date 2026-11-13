@@ -1,4 +1,4 @@
-function PackageItem({ pkg, onDelete, currentUser }) {
+function PackageItem({ pkg }) {
   return (
     <li className="package">
       <h2>{pkg.name}</h2>
@@ -10,20 +10,6 @@ function PackageItem({ pkg, onDelete, currentUser }) {
       <p className="date">
         📅 Arrived: {pkg.arrival_date ? pkg.arrival_date.slice(0, 10) : "N/A"}
       </p>
-
-      <div className="card-actions">
-        <button
-          className="delete-btn"
-          onClick={() => onDelete(pkg.id)}
-          title={
-            currentUser?.role === "admin"
-              ? "Admin permission: Delete package"
-              : "Staff permission: Will be blocked with 403 Forbidden"
-          }
-        >
-          🗑️ Delete Package
-        </button>
-      </div>
     </li>
   );
 }

@@ -10,19 +10,13 @@ DB_PATH = Path(__file__).resolve().with_name("warehouse.db")
 engine = create_engine(f"sqlite:///{DB_PATH}")
 Base = declarative_base()
 
-# --- JWT Configuration ---
-ACCESS_TOKEN_EXPIRY = 60  # minutes
-REFRESH_TOKEN_EXPIRY = 7   # days
+ACCESS_TOKEN_EXPIRY = 60
+REFRESH_TOKEN_EXPIRY = 7
 SECRET_KEY = "SECRET67_WAREHOUSE_DISPATCH_JWT_KEY_2026"
 ALGORITHM = "HS256"
 
-# Password hasher
 ph = PasswordHasher()
 
-
-# ==========================================
-# Database Models
-# ==========================================
 
 class User(Base):
     __tablename__ = "users"
@@ -30,7 +24,7 @@ class User(Base):
     user_id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, nullable=False)
     password = Column(String, nullable=False)
-    role = Column(String, default="staff")  # "admin" or "staff"
+    role = Column(String, default="staff")
 
 
 class Package(Base):
@@ -56,24 +50,15 @@ class DispatchBatch(Base):
 Base.metadata.create_all(engine)
 
 
-# ==========================================
-# Initialize Sample Data (Users + Batches)
-# ==========================================
-
 def init_sample_data():
     session = Session(engine)
 
-    # 1. Seed Batches if empty
     if session.query(DispatchBatch).count() == 0:
         b1 = DispatchBatch(destination="New York", vehicle="Truck-A", status="pending")
         b2 = DispatchBatch(destination="Chicago", vehicle="Van-B", status="dispatched")
         session.add_all([b1, b2])
         session.commit()
 
-    # 2. Seed Default Users with Hashed Passwords
-    # Admin 1: admin / admin123 (role: admin)
-    # Admin 2: aryan / aryan@06 (role: admin)
-    # Staff 1: staff / staff123 (role: staff)
     if session.query(User).count() == 0:
         users = [
             User(username="admin", password=ph.hash("admin123"), role="admin"),
@@ -88,10 +73,6 @@ def init_sample_data():
 
 init_sample_data()
 
-
-# ==========================================
-# JWT Token Functions
-# ==========================================
 
 def create_token(username: str, role: str = "staff", token_type: str = "access"):
     if token_type == "access":
@@ -121,10 +102,6 @@ def verify_token(token: str, token_type: str = "access"):
     except Exception:
         return False
 
-
-# ==========================================
-# User Authentication (Argon2 Hashing)
-# ==========================================
 
 def register_user(username: str, password: str, role: str = "staff"):
     session = Session(engine)
@@ -168,14 +145,8 @@ def login(username: str, password: str):
     return None
 
 
-# ==========================================
-# Warehouse Package & Batch CRUD Functions
-# ==========================================
-
-# 1. Register a package
 def add_package(name, destination, weight, arrival_date=None, status="received"):
     session = Session(engine)
-    parsed_date = None
     if arrival_date:
         try:
             parsed_date = datetime.fromisoformat(arrival_date)
@@ -205,7 +176,6 @@ def add_package(name, destination, weight, arrival_date=None, status="received")
     return response
 
 
-# 2. Get details of a specific package
 def get_package(id: int):
     session = Session(engine)
     package = session.get(Package, id)
@@ -224,7 +194,6 @@ def get_package(id: int):
     return response
 
 
-# 3. Partially update package details
 def update_package(id: int, name=None, destination=None, weight=None, status=None):
     session = Session(engine)
     package = session.get(Package, id)
@@ -252,7 +221,6 @@ def update_package(id: int, name=None, destination=None, weight=None, status=Non
     return response
 
 
-# 4. Delete a package (only if not dispatched)
 def delete_package(id: int):
     session = Session(engine)
     package = session.get(Package, id)
@@ -268,7 +236,6 @@ def delete_package(id: int):
     return "success"
 
 
-# 5. Search and filter packages (by destination, status, arrival date)
 def get_all_packages(destination=None, status=None, arrival_date=None):
     session = Session(engine)
     packages = session.query(Package).all()
@@ -292,7 +259,6 @@ def get_all_packages(destination=None, status=None, arrival_date=None):
     return response
 
 
-# 6. View dispatch batches (filter by destination, vehicle, dispatch status)
 def get_dispatch_batches(destination=None, vehicle=None, status=None):
     session = Session(engine)
     batches = session.query(DispatchBatch).all()
@@ -314,7 +280,6 @@ def get_dispatch_batches(destination=None, vehicle=None, status=None):
     return response
 
 
-# 7. Get warehouse statistics (dispatch summary)
 def get_summary():
     session = Session(engine)
     packages = session.query(Package).all()
@@ -345,7 +310,6 @@ def get_summary():
     }
 
 
-# 8. Add dispatch batch manually and assign packages
 def add_dispatch_batch(destination: str, vehicle: str, status: str = "pending", package_ids: list[int] = None):
     session = Session(engine)
     batch = DispatchBatch(
